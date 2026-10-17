@@ -383,7 +383,7 @@ pnpm lint
 pnpm typecheck
 ```
 
-Tests pin behaviour, not implementation: a new case should describe what a caller relies on. CI runs lint, typecheck and the tests on Linux, macOS and Windows with Node 22 and 24 for every pull request. Add a line to the [changelog](./CHANGELOG.md) under the unreleased version.
+Tests pin behaviour, not implementation: a new case should describe what a caller relies on. CI runs lint, typecheck, the tests and the examples for every pull request: on Linux, macOS and Windows with Node 24, and on Linux with Node 22, the oldest supported. Add a line to the [changelog](./CHANGELOG.md) under the unreleased version.
 
 ## License
 
