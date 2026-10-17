@@ -8,11 +8,28 @@
 [![npm downloads](https://img.shields.io/npm/dm/clikit)](https://www.npmjs.com/package/clikit)
 [![CI](https://github.com/devmaxxx/clikit/actions/workflows/ci.yml/badge.svg)](https://github.com/devmaxxx/clikit/actions/workflows/ci.yml)
 [![types](https://img.shields.io/npm/types/clikit)](https://www.npmjs.com/package/clikit)
+[![node](https://img.shields.io/node/v/clikit)](./package.json)
 [![zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](./package.json)
 [![bundle size](https://img.shields.io/bundlejs/size/clikit)](https://bundlejs.com/?q=clikit)
 [![license: MIT](https://img.shields.io/npm/l/clikit)](./LICENSE)
 
+[Install](#install) · [Quick start](#quick-start) · [API](#api) · [Recipes](#recipes) · [Alternatives](#compared-with-single-purpose-packages) · [Changelog](./CHANGELOG.md)
+
 </div>
+
+## Contents
+
+- [Why](#why)
+- [Features](#features)
+- [Install](#install)
+- [Quick start](#quick-start)
+- [API](#api): [json](#clikitjson) · [proc](#clikitproc) · [watchdog](#clikitwatchdog) · [lock](#clikitlock) · [env](#clikitenv) · [log](#clikitlog) · [errors](#clikiterrors)
+- [Recipes](#recipes)
+- [Compared with single-purpose packages](#compared-with-single-purpose-packages)
+- [Limits](#limits)
+- [Stability](#stability)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Why
 
@@ -347,6 +364,10 @@ Use jsonrepair or partial-json when the JSON itself is damaged or still streamin
 - `acquireLock` is for one machine. It does not wait or retry, and it is not safe on network file systems. Clearing a stale lock is safe between two runs; three runs racing over one stale lock in the same few microseconds can still end with two holders, because Node has no `rename` that refuses to overwrite.
 - `failureSignature` is tuned for GitHub Actions, pnpm, turbo, vitest, tsc and Playwright output; other tools fall back to their last five lines.
 
+## Stability
+
+clikit is pre-1.0. It follows [semver](https://semver.org), so until 1.0 a minor release (`0.x`) may change an API; every change is listed in the [changelog](./CHANGELOG.md). Pin a minor range (`~0.1.0`) if you need to stay put.
+
 ## Contributing
 
 Issues and pull requests are welcome at [github.com/devmaxxx/clikit](https://github.com/devmaxxx/clikit).
@@ -359,7 +380,7 @@ pnpm lint
 pnpm typecheck
 ```
 
-Tests pin behaviour, not implementation: a new case should describe what a caller relies on.
+Tests pin behaviour, not implementation: a new case should describe what a caller relies on. CI runs lint, typecheck and the tests on Linux, macOS and Windows with Node 22 and 24 for every pull request. Add a line to the [changelog](./CHANGELOG.md) under the unreleased version.
 
 ## License
 
