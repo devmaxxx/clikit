@@ -106,23 +106,29 @@ export function lastJsonObject(text: string): unknown
 export function lastJsonObject<T>(text: string, validate: Guard<T>): T | undefined
 export function lastJsonObject(raw: string, validate?: Guard<unknown>): unknown {
   const text = stripAnsi(raw)
-  const end = text.lastIndexOf('}')
+  const accept = validate ?? any
+  const first = text.indexOf('{')
 
-  if (end < 0) {
+  if (first < 0) {
     return undefined
   }
 
-  let i = text.lastIndexOf('{', end)
+  let tries = 0
 
-  for (let tries = 0; i >= 0 && tries < MAX_BRACE_TRIES; tries++) {
-    const value = parse(text.slice(i, end + 1))
+  // A `}` in the prose after the answer ends no object; every start fails for it and the next `}` back is tried.
+  for (let end = text.lastIndexOf('}'); end > first && tries < MAX_BRACE_TRIES; end = text.lastIndexOf('}', end - 1)) {
+    let i = text.lastIndexOf('{', end)
 
-    if (value !== FAILED && (validate ?? any)(value)) {
-      return value
+    for (; i >= 0 && tries < MAX_BRACE_TRIES; tries++) {
+      const value = parse(text.slice(i, end + 1))
+
+      if (value !== FAILED && accept(value)) {
+        return value
+      }
+
+      // An inner brace, or a value the guard rejected: retry from the enclosing one.
+      i = i === 0 ? -1 : text.lastIndexOf('{', i - 1)
     }
-
-    // An inner brace, or a value the guard rejected: retry from the enclosing one.
-    i = i === 0 ? -1 : text.lastIndexOf('{', i - 1)
   }
 
   return undefined

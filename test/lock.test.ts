@@ -73,6 +73,13 @@ it('release leaves a lock that another run has since taken', () => {
   expect(readFileSync(path, 'utf8')).toBe('1')
 })
 
+it('replacing a stale lock leaves no file but the lock behind', () => {
+  const path = tmp()
+  writeFileSync(path, 'not a pid')
+  acquireLock(path)
+  expect(readdirSync(dirname(path))).toEqual(['app.lock'])
+})
+
 it('leaves no staging file behind', () => {
   const path = tmp()
   acquireLock(path)

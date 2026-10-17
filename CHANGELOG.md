@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `clikit/json`: `lastJson(text, validate?)`, `tryLastJson(text, validate?)` and `lastJsonObject(text, validate?)` read the JSON value that ends CLI output or the last object in model output, through ANSI escapes and CRLF, with an optional type guard.
-- `clikit/proc`: `spawnGroup`, `killGroup` (SIGTERM, grace period, SIGKILL to the group and every detached group beneath it), `isAlive`, `cwdOf` and `startOf`.
+- `clikit/proc`: `spawnGroup`, `killGroup` (SIGTERM to the group and every detached group beneath it, a grace period, then SIGKILL), `isAlive`, `cwdOf` and `startOf`.
 - `clikit/watchdog`: `Watchdog` with a wall-clock and a stall limit.
 - `clikit/lock`: `acquireLock` pidfile lock with stale-pid detection, and `LockHeld`.
 - `clikit/env`: `withoutSecrets`, `withoutGitVars` and `SECRET_VARS`.

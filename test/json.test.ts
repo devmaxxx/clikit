@@ -93,10 +93,22 @@ describe('lastJsonObject reads the last object in model output', () => {
     expect(lastJsonObject('a set {1, 2}')).toBeUndefined()
   })
 
-  it('returns undefined when the guard rejects the last object', () => {
+  it('returns the last object the guard accepts, skipping later ones it rejects', () => {
     const hasVerdict = (v: unknown): v is { verdict: string } => typeof v === 'object' && v !== null && 'verdict' in v
-    expect(lastJsonObject('{"verdict":"ok"} then {"other":1}', hasVerdict)).toBeUndefined()
+    expect(lastJsonObject('{"verdict":"ok"} then {"other":1}', hasVerdict)?.verdict).toBe('ok')
     expect(lastJsonObject('answer: {"verdict":"ok"}', hasVerdict)?.verdict).toBe('ok')
+    expect(lastJsonObject('{"other":1}', hasVerdict)).toBeUndefined()
+  })
+
+  it('finds the answer when the prose after it holds a stray closing brace', () => {
+    expect(lastJsonObject('```json\n{"verdict":"approve"}\n```\nUse `}` to close a block.')).toEqual({ verdict: 'approve' })
+  })
+
+  it('finishes fast on input full of closing braces', () => {
+    const t0 = Date.now()
+    expect(lastJsonObject(`{${'x}'.repeat(200_000)}`)).toBeUndefined()
+    expect(lastJsonObject('}'.repeat(200_000))).toBeUndefined()
+    expect(Date.now() - t0).toBeLessThan(1_000)
   })
 
   it('finishes fast on deeply nested input that never closes', () => {

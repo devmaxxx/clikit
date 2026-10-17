@@ -8,11 +8,28 @@
 [![npm downloads](https://img.shields.io/npm/dm/clikit)](https://www.npmjs.com/package/clikit)
 [![CI](https://github.com/devmaxxx/clikit/actions/workflows/ci.yml/badge.svg)](https://github.com/devmaxxx/clikit/actions/workflows/ci.yml)
 [![types](https://img.shields.io/npm/types/clikit)](https://www.npmjs.com/package/clikit)
+[![node](https://img.shields.io/node/v/clikit)](./package.json)
 [![zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](./package.json)
 [![bundle size](https://img.shields.io/bundlejs/size/clikit)](https://bundlejs.com/?q=clikit)
 [![license: MIT](https://img.shields.io/npm/l/clikit)](./LICENSE)
 
+[Install](#install) · [Quick start](#quick-start) · [API](#api) · [Recipes](#recipes) · [Alternatives](#compared-with-single-purpose-packages) · [Changelog](./CHANGELOG.md)
+
 </div>
+
+## Contents
+
+- [Why](#why)
+- [Features](#features)
+- [Install](#install)
+- [Quick start](#quick-start)
+- [API](#api): [json](#clikitjson) · [proc](#clikitproc) · [watchdog](#clikitwatchdog) · [lock](#clikitlock) · [env](#clikitenv) · [log](#clikitlog) · [errors](#clikiterrors)
+- [Recipes](#recipes)
+- [Compared with single-purpose packages](#compared-with-single-purpose-packages)
+- [Limits](#limits)
+- [Stability](#stability)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Why
 
@@ -54,7 +71,7 @@ yarn add clikit
 bun add clikit
 ```
 
-Requires Node.js 20 or later.
+Requires Node.js 22 or later.
 
 > **Pick only what you need.** `import { lastJson } from 'clikit/json'` loads just that module. The root `clikit` re-exports everything, and bundlers tree-shake it too.
 
@@ -113,11 +130,11 @@ tryLastJson('no json here') // undefined
 
 #### `lastJsonObject(text, validate?)`
 
-The last `{…}` object in `text` — a model's answer in prose or a code fence — or `undefined`. It ends at the last `}` and walks back over `{` until the slice parses. Arrays and scalars are not looked for, because prose is full of `[1]`-style brackets.
+The last `{…}` object in `text` — a model's answer in prose or a code fence — or `undefined`. It walks back from the last `}` over `{` until a slice parses, and from an earlier `}` when a stray one in later prose ends nothing. Arrays and scalars are not looked for, because prose is full of `[1]`-style brackets.
 
 #### `validate`: plug in zod, valibot or your own guard
 
-All three accept an optional type guard `(value: unknown) => value is T` and then return `T`. A value the guard rejects is skipped: `lastJson` tries an earlier line start, `lastJsonObject` an enclosing brace. No schema library is a dependency.
+All three accept an optional type guard `(value: unknown) => value is T` and then return `T`. A value the guard rejects is skipped: `lastJson` tries an earlier line start, `lastJsonObject` an enclosing brace and then an earlier object. No schema library is a dependency.
 
 ```ts
 import { z } from 'zod'
@@ -130,15 +147,15 @@ const pr = lastJson(stdout, isPr) // typed as { number: number, title: string }
 
 ### `clikit/proc`
 
-Process groups and process facts. **POSIX only for groups:** `killGroup` throws on Windows, which has no process groups; `cwdOf` reads `lsof` and `startOf` reads `ps`, so both return `null` where those are missing (Windows, minimal containers). `isAlive` and `spawnGroup` work everywhere.
+Process groups and process facts. **POSIX only for groups:** `killGroup` throws on Windows, which has no process groups; `cwdOf` reads `/proc` on Linux and `lsof` elsewhere, `startOf` reads `ps`, so both return `null` where those are missing (Windows, minimal containers). `isAlive` and `spawnGroup` work everywhere.
 
-#### `spawnGroup(cmd, args, { cwd, env })`
+#### `spawnGroup(cmd, args, { cwd?, env? })`
 
 `spawn` with `detached: true` and piped stdio: the child leads a new process group, so one signal reaches every grandchild that stays in it. Returns the `ChildProcess`.
 
 #### `killGroup(pid, graceMs = 10_000, snapshot?)`
 
-SIGTERM to the group led by `pid`, up to `graceMs` for it to exit, then SIGKILL — to that group *and* to every detached group started beneath it (found with `ps -axo pid=,ppid=,pgid=`, before the SIGTERM and again after the grace). Groups merely shared with the target are left alone. If `ps` fails (EAGAIN at the process limit), the target group is still killed. Rejects for `pid` 0, 1, negative or non-integer, which `kill(2)` would read as "my group" or "every process".
+SIGTERM to the group led by `pid` *and* to every detached group started beneath it, up to `graceMs` for all of them to exit, then SIGKILL to the survivors and to any detached group the leader started during the grace (found with `ps -axo pid=,ppid=,pgid=`, before the SIGTERM and again after the grace). Groups merely shared with the target are left alone. If `ps` fails (EAGAIN at the process limit), the target group is still killed. Rejects for `pid` 0, 1, negative or non-integer, which `kill(2)` would read as "my group" or "every process".
 
 #### `isAlive(pid)`, `cwdOf(pid)`, `startOf(pid)`
 
@@ -154,13 +171,13 @@ startOf(process.pid) // 'Sat Oct 17 00:51:27 2026'
 
 #### `new Watchdog({ wallMs, stallMs }, onFire, now?)`
 
-Call `poke()` on every sign of life and `check()` on a timer. `onFire('timed_out' | 'stalled')` runs once, on the first check at or past a limit (a 45-minute wall clock fires at minute 45). `setLimits()` applies from the next check, `stop()` disarms it, and `now` is injectable for tests.
+Call `poke()` on every sign of life and `check()` on a timer. `onFire('timed_out' | 'stalled')` runs once, on the first check at or past a limit (a 45-minute wall clock fires at minute 45). `setLimits()` applies from the next check, `stop()` disarms it, and `now` is injectable for tests. The default clock is monotonic (`performance.now()`): an NTP step neither fires nor delays it, and time the machine spends asleep does not count, so waking a laptop does not report every child as stalled.
 
 ### `clikit/lock`
 
 #### `acquireLock(path)`
 
-Creates `path` with `O_EXCL` and writes this process's pid; returns `{ release() }`. The directory is created owner-only (`0700`) if needed. A file naming a dead pid, or holding no pid (a crash between create and write), is stale and replaced. A live holder — including one owned by another user (`EPERM`) — throws `LockHeld`.
+Writes this process's pid to a private file and hard-links it into place, so the lock never exists half-written and exactly one of two racing runs wins; returns `{ release() }`. The directory is created owner-only (`0700`) if needed. A file naming a dead pid, or holding no pid, is stale and replaced: it is renamed aside first and put back if it turns out to be another run's fresh lock, so two runs clearing one stale lock cannot both win. A live holder — including one owned by another user (`EPERM`) — throws `LockHeld`.
 
 #### `LockHeld`
 
@@ -183,7 +200,7 @@ withoutGitVars({ PATH: '/usr/bin', GIT_DIR: '/repo/.git', GIT_INDEX_FILE: 'x' })
 
 #### `stripAnsi(text, { caret? })`
 
-Removes CSI (colour, cursor), OSC (titles, hyperlinks) and two-byte escapes. With `caret: true` it also removes escapes written in caret notation (`^[[31m`), which is how `gh` prints them into a pipe. That stays opt-in because elsewhere `^[` is content.
+Removes CSI (colour, cursor), OSC (titles, hyperlinks) and short escapes such as `tput sgr0`'s `ESC ( B`, `ESC 7` / `ESC 8` and `ESC =`. With `caret: true` it also removes escapes written in caret notation (`^[[31m`), which is how `gh` prints them into a pipe. That stays opt-in because elsewhere `^[` is content.
 
 ```ts
 stripAnsi('^[[31merror^[[0m \x1B[1mbold\x1B[22m', { caret: true }) // 'error bold'
@@ -202,6 +219,8 @@ errnoCode(err) // 'ENOENT' for fs errors; undefined for a numeric exit code
 
 ## Recipes
 
+Runnable versions live in [`examples/`](./examples): each one prints what it does and asserts the result, and CI runs them against the build on every platform. Try them with `pnpm build && pnpm examples`, or one at a time with `node examples/watchdog.mjs`.
+
 ### Run a CLI with a watchdog and parse its JSON answer
 
 ```ts
@@ -210,7 +229,7 @@ import { killGroup, spawnGroup } from 'clikit/proc'
 import { Watchdog } from 'clikit/watchdog'
 
 async function runJson(cmd: string, args: string[]): Promise<unknown> {
-  const child = spawnGroup(cmd, args, { cwd: process.cwd(), env: process.env as Record<string, string> })
+  const child = spawnGroup(cmd, args)
   let stdout = ''
   let reason: string | undefined
 
@@ -333,20 +352,23 @@ Use jsonrepair or partial-json when the JSON itself is damaged or still streamin
 | clikit | Alternative | What differs |
 | --- | --- | --- |
 | `spawnGroup` + `killGroup` | [tree-kill](https://www.npmjs.com/package/tree-kill), [fkill](https://www.npmjs.com/package/fkill), [execa](https://www.npmjs.com/package/execa) | tree-kill signals each pid of the tree once and supports Windows; fkill kills by pid, name or port across platforms; execa is a full process runner with timeouts and `forceKillAfterDelay`. `killGroup` is POSIX-only, but follows grandchildren that started their own detached groups, re-scans after the grace period and refuses `kill(0)` / `kill(-1)`. |
-| `Watchdog` | [p-timeout](https://www.npmjs.com/package/p-timeout), execa's `timeout` | Those bound the total time. `Watchdog` adds a stall limit that resets on every sign of life, and leaves the reaction to you. |
+| `Watchdog` | [p-timeout](https://www.npmjs.com/package/p-timeout), `AbortSignal.timeout`, execa's `timeout` | Those bound the total time. `Watchdog` adds a stall limit that resets on every sign of life, and leaves the reaction to you. |
 | `acquireLock` | [proper-lockfile](https://www.npmjs.com/package/proper-lockfile), [lockfile](https://www.npmjs.com/package/lockfile) | proper-lockfile uses mtime-refreshed lock directories and works over network file systems; lockfile retries and waits. `acquireLock` is a synchronous pidfile that checks whether the holder is alive. |
-| `stripAnsi` | [strip-ansi](https://www.npmjs.com/package/strip-ansi) | strip-ansi covers more escape variants. clikit adds opt-in caret notation (`^[[31m`) for `gh` logs. |
+| `stripAnsi` | [strip-ansi](https://www.npmjs.com/package/strip-ansi), Node's `util.stripVTControlCharacters` | Both cover 8-bit C1 escapes as well; the built-in needs no install. clikit adds opt-in caret notation (`^[[31m`) for `gh` logs. |
 | `errorMessage`, `errnoCode` | [serialize-error](https://www.npmjs.com/package/serialize-error) | serialize-error turns a whole error into a plain object and back. These two read the message and the errno name safely from any thrown value. |
 | `withoutSecrets`, `withoutGitVars` | [env-var](https://www.npmjs.com/package/env-var) | env-var reads and validates variables. These filter what a child inherits. |
 
 ## Limits
 
-- `lastJson` finds objects, arrays and `null` — not bare numbers, strings or booleans, which look like ordinary log lines. Only the value that *ends* the output counts, and on the last line only the first `[` or `{` is tried.
-- `lastJsonObject` ends at the last `}` in the text. A stray `}` in prose after the answer hides it. It walks back over at most 1,024 opening braces, so an answer holding more than about a thousand nested objects is not found; that cap keeps hostile input (200,000 nested levels) under a second.
-- A `validate` guard can only reject: `lastJsonObject` does not then look for an earlier, separate object.
+- `lastJson` finds objects, arrays and `null` — not bare numbers, strings or booleans, which look like ordinary log lines. Only the value that *ends* the output counts; on the last line every `[` or `{` is tried, left to right.
+- `lastJsonObject` tries at most 1,024 brace pairs in all, so an answer holding more than about a thousand nested objects, or buried under a thousand braces of later prose, is not found; that cap keeps hostile input (200,000 nested levels) under a second.
 - `killGroup` is POSIX-only and needs `ps`; `cwdOf` needs `lsof`.
-- `acquireLock` is for one machine. It does not wait or retry, and it is not safe on network file systems.
+- `acquireLock` is for one machine. It does not wait or retry, and it is not safe on network file systems. Clearing a stale lock is safe between two runs; three runs racing over one stale lock in the same few microseconds can still end with two holders, because Node has no `rename` that refuses to overwrite.
 - `failureSignature` is tuned for GitHub Actions, pnpm, turbo, vitest, tsc and Playwright output; other tools fall back to their last five lines.
+
+## Stability
+
+clikit is pre-1.0. It follows [semver](https://semver.org), so until 1.0 a minor release (`0.x`) may change an API; every change is listed in the [changelog](./CHANGELOG.md). Pin a minor range (`~0.1.0`) if you need to stay put.
 
 ## Contributing
 
@@ -356,11 +378,12 @@ Issues and pull requests are welcome at [github.com/devmaxxx/clikit](https://git
 pnpm install
 pnpm build
 pnpm test
+pnpm examples
 pnpm lint
 pnpm typecheck
 ```
 
-Tests pin behaviour, not implementation: a new case should describe what a caller relies on.
+Tests pin behaviour, not implementation: a new case should describe what a caller relies on. CI runs lint, typecheck, the tests and the examples for every pull request: on Linux, macOS and Windows with Node 24, and on Linux with Node 22, the oldest supported. Add a line to the [changelog](./CHANGELOG.md) under the unreleased version.
 
 ## License
 

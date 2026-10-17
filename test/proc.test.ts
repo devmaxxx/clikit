@@ -1,7 +1,8 @@
 import type { Buffer } from 'node:buffer'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { execSync } from 'node:child_process'
-import { realpathSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { cwdOf, isAlive, killGroup, spawnGroup, startOf } from '../src/proc'
 import { tempDir } from './helpers'
@@ -41,6 +42,17 @@ describe.skipIf(process.platform === 'win32')('process groups', () => {
     await killGroup(c.pid as number, 300)
     expect(isAlive(c.pid as number)).toBe(false)
     expect(survivors(sleepPid, 313)).toBe('')
+  })
+
+  it('killGroup gives a detached descendant SIGTERM and the grace period, not just SIGKILL', async () => {
+    const marker = join(tempDir('clikit-'), 'termed')
+    const shell = `trap 'touch ${marker}; exit 0' TERM; echo ready; while :; do sleep 0.05; done`
+    const cli = `const s = require('node:child_process').spawn('sh', ['-c', ${JSON.stringify(shell)}], { detached: true, stdio: ['ignore', 'inherit', 'ignore'] }); setInterval(() => {}, 1000)`
+
+    const c = spawnGroup(process.execPath, ['-e', cli], { env })
+    await firstOutput(c)
+    await killGroup(c.pid as number, 2_000)
+    expect(existsSync(marker)).toBe(true)
   })
 
   it('killGroup reaches a detached group started during the grace period', async () => {
@@ -150,6 +162,12 @@ describe.skipIf(process.platform === 'win32')('process groups', () => {
     await killGroup(c.pid as number, 300)
     expect(startOf(c.pid as number)).toBeNull()
   })
+})
+
+it('isAlive never reads 0 or a negative pid as a live process group', () => {
+  expect(isAlive(0)).toBe(false)
+  expect(isAlive(-1)).toBe(false)
+  expect(isAlive(1.5)).toBe(false)
 })
 
 it('isAlive tells a running process from a finished one', async () => {
