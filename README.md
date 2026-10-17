@@ -176,8 +176,8 @@ withoutGitVars({ PATH: '/usr/bin', GIT_DIR: '/repo/.git', GIT_INDEX_FILE: 'x' })
 // { PATH: '/usr/bin' }
 ```
 
-- `withoutSecrets(env, names = SECRET_VARS)` drops the named variables and unset entries. `SECRET_VARS` covers `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `CODEX_API_KEY` and `JIRA_API_TOKEN`; pass your own list to change it.
-- `withoutGitVars(env)` drops every `GIT_*` variable, so a child started from inside a git hook does not operate on the hook's repository.
+- `withoutSecrets(env, names = SECRET_VARS)` drops the named variables and unset entries. `SECRET_VARS` covers common GitHub, GitLab, npm, Anthropic/Claude, OpenAI, Gemini/Google, AWS and Jira token variables; it is a fixed list, not a pattern, so pass your own to extend it.
+- `withoutGitVars(env)` drops the variables that bind git to a repository (`git rev-parse --local-env-vars`, plus `GIT_CONFIG_KEY_n`/`GIT_CONFIG_VALUE_n`), so a child started from inside a git hook does not operate on the hook's repository. `GIT_SSH_COMMAND`, `GIT_ASKPASS` and identity variables are kept.
 
 ### `clikit/log`
 

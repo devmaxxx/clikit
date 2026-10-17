@@ -14,6 +14,12 @@ it('withoutSecrets drops only the names it is given, and unset entries', () => {
     .toEqual({ PATH: '/bin', GH_TOKEN: 'g' })
 })
 
-it('withoutGitVars drops every GIT_ variable and keeps the rest', () => {
+it('withoutGitVars drops the repository-binding GIT_ variables and keeps the rest', () => {
   expect(withoutGitVars(ENV)).toEqual({ PATH: '/bin', GH_TOKEN: 'shell', HOME: '/h' })
+})
+
+it('withoutGitVars keeps git auth and identity settings but drops indexed config', () => {
+  const env = { GIT_SSH_COMMAND: 'ssh -i k', GIT_ASKPASS: '/a', GIT_AUTHOR_NAME: 'n', GIT_CONFIG_KEY_0: 'x', GIT_CONFIG_VALUE_0: 'y' }
+
+  expect(withoutGitVars(env)).toEqual({ GIT_SSH_COMMAND: 'ssh -i k', GIT_ASKPASS: '/a', GIT_AUTHOR_NAME: 'n' })
 })
