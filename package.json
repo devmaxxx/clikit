@@ -1,0 +1,80 @@
+{
+  "name": "clikit",
+  "type": "module",
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.23.0",
+  "description": "Small, zero-dependency helpers for CLIs that run other CLIs: read the JSON that ends noisy output, kill whole process trees, watchdog timeouts, pidfile locks, clean child env, CI failure signatures.",
+  "author": "arenuzzz",
+  "license": "MIT",
+  "homepage": "https://github.com/arenuzzz/clikit#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arenuzzz/clikit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/arenuzzz/clikit/issues"
+  },
+  "keywords": [
+    "cli",
+    "json",
+    "parse",
+    "stdout",
+    "extract",
+    "llm",
+    "ai",
+    "gpt",
+    "claude",
+    "child-process",
+    "process-group",
+    "kill",
+    "tree-kill",
+    "watchdog",
+    "timeout",
+    "lock",
+    "pidfile",
+    "env",
+    "strip-ansi",
+    "ci",
+    "logs"
+  ],
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./env": "./dist/env.mjs",
+    "./errors": "./dist/errors.mjs",
+    "./json": "./dist/json.mjs",
+    "./lock": "./dist/lock.mjs",
+    "./log": "./dist/log.mjs",
+    "./proc": "./dist/proc.mjs",
+    "./watchdog": "./dist/watchdog.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "CHANGELOG.md",
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "lint": "eslint .",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm run build"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^9.5.1",
+    "@types/node": "^26.6.5",
+    "eslint": "^10.13.0",
+    "publint": "^0.3.25",
+    "tsdown": "^0.23.1",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5"
+  }
+}
