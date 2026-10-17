@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "packageManager": "pnpm@10.23.0",
   "description": "Small, zero-dependency helpers for CLIs that run other CLIs: read the JSON that ends noisy output, kill whole process trees, watchdog timeouts, pidfile locks, clean child env, CI failure signatures.",
-  "author": "arenuzzz",
+  "author": "Maksym Synenko",
   "license": "MIT",
   "homepage": "https://github.com/devmaxxx/clikit#readme",
   "repository": {
