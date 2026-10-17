@@ -1,22 +1,32 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { execFileSync, spawn } from 'node:child_process'
+import { readlinkSync } from 'node:fs'
 import process from 'node:process'
 
 export interface SpawnGroupOptions {
-  cwd: string
-  env: Record<string, string>
+  /** Defaults to the current working directory. */
+  cwd?: string
+  /** Defaults to `process.env`. */
+  env?: NodeJS.ProcessEnv
 }
 
 /**
  * Spawns `cmd` as the leader of a new process group, with piped stdio, so {@link killGroup} can later reach every
  * grandchild that stays in the group.
  */
-export function spawnGroup(cmd: string, args: string[], options: SpawnGroupOptions): ChildProcessWithoutNullStreams {
+export function spawnGroup(cmd: string, args: string[], options: SpawnGroupOptions = {}): ChildProcessWithoutNullStreams {
   return spawn(cmd, args, { cwd: options.cwd, env: options.env, detached: true, stdio: 'pipe' })
 }
 
-/** Whether a process with this pid exists and can be signalled by this user. */
+/**
+ * Whether a process with this pid exists and can be signalled by this user. A pid that is not a positive integer is
+ * never alive: kill(2) would read 0 or a negative number as a process group.
+ */
 export function isAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) {
+    return false
+  }
+
   try {
     process.kill(pid, 0)
     return true
@@ -26,8 +36,21 @@ export function isAlive(pid: number): boolean {
   }
 }
 
-/** The working directory of a live process, read with `lsof`; `null` once it is gone or when `lsof` is missing. */
+/**
+ * The working directory of a live process, read from `/proc` on Linux and with `lsof` elsewhere; `null` once it is
+ * gone or when neither is available.
+ */
 export function cwdOf(pid: number): string | null {
+  // Minimal containers ship without lsof, and procfs answers without starting a process.
+  if (process.platform === 'linux') {
+    try {
+      return readlinkSync(`/proc/${pid}/cwd`)
+    }
+    catch {
+      /* not readable: lsof may still answer */
+    }
+  }
+
   try {
     const out = execFileSync('lsof', ['-a', '-p', String(pid), '-d', 'cwd', '-Fn'], {
       encoding: 'utf8',
@@ -130,8 +153,8 @@ function signal(group: number, s: NodeJS.Signals): void {
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
 /**
- * Stops the process group led by `pid` and every detached group started beneath it: SIGTERM, up to `graceMs` for
- * the group to exit, then SIGKILL. POSIX only (macOS, Linux); throws on Windows, which has no process groups.
+ * Stops the process group led by `pid` and every detached group started beneath it: SIGTERM to all of them, up to
+ * `graceMs` for them to exit, then SIGKILL. POSIX only (macOS, Linux); throws on Windows, which has no process groups.
  * `snapshot` replaces the `ps -axo pid=,ppid=,pgid=` call that maps the process tree.
  */
 export async function killGroup(pid: number, graceMs = 10_000, snapshot: () => string = psSnapshot): Promise<void> {
@@ -145,24 +168,27 @@ export async function killGroup(pid: number, graceMs = 10_000, snapshot: () => s
   }
 
   // Taken before SIGTERM: once the leader dies its detached children are reparented and no longer reachable from pid.
-  const others = new Set(descendantGroups(pid, snapshot))
+  const groups = new Set([pid, ...descendantGroups(pid, snapshot)])
 
-  signal(pid, 'SIGTERM')
+  for (const group of groups) {
+    signal(group, 'SIGTERM')
+  }
+
   const until = Date.now() + graceMs
 
-  // The leader can exit on SIGTERM long before its grandchildren finish shutting down; they get the grace too.
-  while (Date.now() < until && groupAlive(pid)) {
+  // The leader can exit on SIGTERM long before its descendants finish shutting down; they get the grace too.
+  while (Date.now() < until && [...groups].some(groupAlive)) {
     await sleep(100)
   }
 
   // A leader that outlived the grace may have started more detached groups since the first snapshot.
   if (isAlive(pid)) {
     for (const group of descendantGroups(pid, snapshot)) {
-      others.add(group)
+      groups.add(group)
     }
   }
 
-  for (const group of [pid, ...others]) {
+  for (const group of groups) {
     signal(group, 'SIGKILL')
   }
 

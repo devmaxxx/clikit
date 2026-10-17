@@ -1,4 +1,4 @@
-import { linkSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { closeSync, fstatSync, linkSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import process from 'node:process'
 import { errnoCode } from './errors'
@@ -46,7 +46,7 @@ function unlinkIfPresent(path: string): void {
 
 // Releasing must not delete a lock that was meanwhile cleared as stale and taken by another run.
 function releaseIfOwned(path: string): void {
-  if (holder(path) === process.pid) {
+  if (holder(path)?.pid === process.pid) {
     unlinkIfPresent(path)
   }
 }
@@ -75,9 +75,16 @@ function create(path: string): Lock | undefined {
   }
 }
 
-function holder(path: string): number | undefined {
+interface Holder {
+  pid: number
+  ino: bigint
+}
+
+function holder(path: string): Holder | undefined {
+  let fd: number
+
   try {
-    return Number(readFileSync(path, 'utf8'))
+    fd = openSync(path, 'r')
   }
   catch (e) {
     if (errnoCode(e) === 'ENOENT') {
@@ -86,6 +93,49 @@ function holder(path: string): number | undefined {
 
     throw e
   }
+
+  try {
+    return { pid: Number(readFileSync(fd, 'utf8')), ino: fstatSync(fd, { bigint: true }).ino }
+  }
+  finally {
+    closeSync(fd)
+  }
+}
+
+// unlink(2) cannot be told "only if it is still this file": another run may clear the same stale lock and take it
+// between our read and our unlink. rename(2) is atomic, so the file is moved aside first and checked there; one
+// that turns out to be another run's lock goes back. The pid is compared too, because a freed inode is often reused
+// at once. Object.is: a garbage file reads as NaN, which never equals itself.
+function removeStale(path: string, stale: Holder): void {
+  const aside = `${path}.${process.pid}.stale`
+
+  try {
+    renameSync(path, aside)
+  }
+  catch (e) {
+    if (errnoCode(e) === 'ENOENT') {
+      return
+    }
+
+    throw e
+  }
+
+  const moved = holder(aside)
+
+  if (moved && (moved.ino !== stale.ino || !Object.is(moved.pid, stale.pid))) {
+    try {
+      linkSync(aside, path)
+    }
+    catch (e) {
+      // EEXIST: a third run took the free path meanwhile, and its lock stands. Anything else leaves the moved lock
+      // where it is, so its owner can still be found.
+      if (errnoCode(e) !== 'EEXIST') {
+        throw e
+      }
+    }
+  }
+
+  unlinkIfPresent(aside)
 }
 
 /**
@@ -103,21 +153,17 @@ export function acquireLock(path: string): Lock {
       return lock
     }
 
-    const pid = holder(path)
+    const held = holder(path)
 
-    if (pid === undefined) {
+    if (held === undefined) {
       continue
     }
 
     // An empty file reads as 0, and kill(0, 0) asks about our own process group, which is always alive.
-    if (Number.isInteger(pid) && pid > 0 && running(pid)) {
-      throw new LockHeld(pid, path)
+    if (Number.isInteger(held.pid) && held.pid > 0 && running(held.pid)) {
+      throw new LockHeld(held.pid, path)
     }
 
-    // Only if it is still the file judged stale: another run may have replaced it since the read.
-    // Object.is: a garbage file reads as NaN, which never equals itself.
-    if (Object.is(holder(path), pid)) {
-      unlinkIfPresent(path)
-    }
+    removeStale(path, held)
   }
 }

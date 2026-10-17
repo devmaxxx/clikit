@@ -6,6 +6,17 @@ describe('stripAnsi', () => {
     expect(stripAnsi('\x1B[1;31mFAIL\x1B[0m \x1B[2K\x1B]8;;https://x.dev\x1B\\docs\x1B]8;;\x1B\\')).toBe('FAIL docs')
   })
 
+  it('removes short escapes: tput sgr0\'s charset reset, cursor save and restore, keypad mode', () => {
+    expect(stripAnsi('\x1B(B\x1B[mok\x1B7\x1B8\x1B=\x1B>')).toBe('ok')
+  })
+
+  it('leaves the JSON after a stray ESC intact', () => {
+    expect(stripAnsi('\x1B{"a":1}')).toBe('\x1B{"a":1}')
+    expect(stripAnsi('\x1B[1,2]')).toBe('\x1B[1,2]')
+    expect(stripAnsi('\x1B[{"a":1}')).toBe('\x1B[{"a":1}')
+    expect(stripAnsi('\x1B[[1]')).toBe('\x1B[[1]')
+  })
+
   it('removes gh\'s literal ^[ escapes only when asked', () => {
     expect(stripAnsi('^[[36;1mpnpm test^[[0m')).toBe('^[[36;1mpnpm test^[[0m')
     expect(stripAnsi('^[[36;1mpnpm test^[[0m', { caret: true })).toBe('pnpm test')

@@ -25,7 +25,9 @@ export class Watchdog {
 
   private readonly now: () => number
 
-  constructor(limits: WatchdogLimits, onFire: (why: WatchdogReason) => void, now: () => number = Date.now) {
+  // A monotonic clock by default, so an NTP step cannot fire or delay it. It pauses while the machine sleeps, as the
+  // child does: a laptop waking up must not read its own sleep as the child's stall.
+  constructor(limits: WatchdogLimits, onFire: (why: WatchdogReason) => void, now: () => number = () => performance.now()) {
     this.limits = limits
     this.onFire = onFire
     this.now = now
