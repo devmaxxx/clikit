@@ -219,6 +219,8 @@ errnoCode(err) // 'ENOENT' for fs errors; undefined for a numeric exit code
 
 ## Recipes
 
+Runnable versions live in [`examples/`](./examples): each one prints what it does and asserts the result, and CI runs them against the build on every platform. Try them with `pnpm build && pnpm examples`, or one at a time with `node examples/watchdog.mjs`.
+
 ### Run a CLI with a watchdog and parse its JSON answer
 
 ```ts
@@ -376,6 +378,7 @@ Issues and pull requests are welcome at [github.com/devmaxxx/clikit](https://git
 pnpm install
 pnpm build
 pnpm test
+pnpm examples
 pnpm lint
 pnpm typecheck
 ```
