@@ -6,7 +6,7 @@
 
 [![npm version](https://img.shields.io/npm/v/clikit?color=cb3837)](https://www.npmjs.com/package/clikit)
 [![npm downloads](https://img.shields.io/npm/dm/clikit)](https://www.npmjs.com/package/clikit)
-[![CI](https://github.com/arenuzzz/clikit/actions/workflows/ci.yml/badge.svg)](https://github.com/arenuzzz/clikit/actions/workflows/ci.yml)
+[![CI](https://github.com/devmaxxx/clikit/actions/workflows/ci.yml/badge.svg)](https://github.com/devmaxxx/clikit/actions/workflows/ci.yml)
 [![types](https://img.shields.io/npm/types/clikit)](https://www.npmjs.com/package/clikit)
 [![zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](./package.json)
 [![bundle size](https://img.shields.io/bundlejs/size/clikit)](https://bundlejs.com/?q=clikit)
@@ -350,7 +350,7 @@ Use jsonrepair or partial-json when the JSON itself is damaged or still streamin
 
 ## Contributing
 
-Issues and pull requests are welcome at [github.com/arenuzzz/clikit](https://github.com/arenuzzz/clikit).
+Issues and pull requests are welcome at [github.com/devmaxxx/clikit](https://github.com/devmaxxx/clikit).
 
 ```sh
 pnpm install
@@ -364,4 +364,4 @@ Tests pin behaviour, not implementation: a new case should describe what a calle
 
 ## License
 
-[MIT](./LICENSE) © arenuzzz
+[MIT](./LICENSE) © Maksym Synenko

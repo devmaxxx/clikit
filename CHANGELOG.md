@@ -18,4 +18,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `clikit/errors`: `errorMessage` and `errnoCode`.
 - The root `clikit` entry re-exports every module.
 
-[0.1.0]: https://github.com/arenuzzz/clikit/releases/tag/v0.1.0
+[0.1.0]: https://github.com/devmaxxx/clikit/releases/tag/v0.1.0

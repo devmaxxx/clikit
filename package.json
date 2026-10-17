@@ -6,13 +6,13 @@
   "description": "Small, zero-dependency helpers for CLIs that run other CLIs: read the JSON that ends noisy output, kill whole process trees, watchdog timeouts, pidfile locks, clean child env, CI failure signatures.",
   "author": "arenuzzz",
   "license": "MIT",
-  "homepage": "https://github.com/arenuzzz/clikit#readme",
+  "homepage": "https://github.com/devmaxxx/clikit#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/arenuzzz/clikit.git"
+    "url": "git+https://github.com/devmaxxx/clikit.git"
   },
   "bugs": {
-    "url": "https://github.com/arenuzzz/clikit/issues"
+    "url": "https://github.com/devmaxxx/clikit/issues"
   },
   "keywords": [
     "cli",
