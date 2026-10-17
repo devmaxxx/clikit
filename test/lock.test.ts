@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { expect, it } from 'vitest'
 import { acquireLock, LockHeld } from '../src/lock'
 import { tempDir } from './helpers'
@@ -63,4 +63,18 @@ it('an empty lock file, left by a crash between create and write, counts as stal
   writeFileSync(path, '')
   acquireLock(path).release()
   expect(existsSync(path)).toBe(false)
+})
+
+it('release leaves a lock that another run has since taken', () => {
+  const path = tmp()
+  const lock = acquireLock(path)
+  writeFileSync(path, '1')
+  lock.release()
+  expect(readFileSync(path, 'utf8')).toBe('1')
+})
+
+it('leaves no staging file behind', () => {
+  const path = tmp()
+  acquireLock(path)
+  expect(readdirSync(dirname(path))).toEqual(['app.lock'])
 })

@@ -1,4 +1,4 @@
-import { closeSync, mkdirSync, openSync, readFileSync, unlinkSync, writeSync } from 'node:fs'
+import { linkSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import process from 'node:process'
 import { errnoCode } from './errors'
@@ -44,19 +44,24 @@ function unlinkIfPresent(path: string): void {
   }
 }
 
+// Releasing must not delete a lock that was meanwhile cleared as stale and taken by another run.
+function releaseIfOwned(path: string): void {
+  if (holder(path) === process.pid) {
+    unlinkIfPresent(path)
+  }
+}
+
 function create(path: string): Lock | undefined {
+  // The pid is written to a private file first and hard-linked into place, so the lock file never exists empty:
+  // a racing run cannot read a half-made lock as stale and delete it.
+  const staging = `${path}.${process.pid}.tmp`
+
   try {
-    // O_EXCL: of two runs racing for the file, exactly one creates it.
-    const fd = openSync(path, 'wx', 0o600)
+    writeFileSync(staging, String(process.pid), { mode: 0o600 })
+    // link(2) fails with EEXIST when the lock exists: of two runs racing for it, exactly one wins.
+    linkSync(staging, path)
 
-    try {
-      writeSync(fd, String(process.pid))
-    }
-    finally {
-      closeSync(fd)
-    }
-
-    return { release: () => unlinkIfPresent(path) }
+    return { release: () => releaseIfOwned(path) }
   }
   catch (e) {
     if (errnoCode(e) !== 'EEXIST') {
@@ -64,6 +69,9 @@ function create(path: string): Lock | undefined {
     }
 
     return undefined
+  }
+  finally {
+    unlinkIfPresent(staging)
   }
 }
 
@@ -106,6 +114,10 @@ export function acquireLock(path: string): Lock {
       throw new LockHeld(pid, path)
     }
 
-    unlinkIfPresent(path)
+    // Only if it is still the file judged stale: another run may have replaced it since the read.
+    // Object.is: a garbage file reads as NaN, which never equals itself.
+    if (Object.is(holder(path), pid)) {
+      unlinkIfPresent(path)
+    }
   }
 }

@@ -109,3 +109,8 @@ describe('lastJsonObject reads the last object in model output', () => {
     expect(Date.now() - t0).toBeLessThan(1_000)
   })
 })
+
+it('lastJson reads a value after a bracketed log prefix on the last line', () => {
+  expect(lastJson('[INFO] {"a":1}')).toEqual({ a: 1 })
+  expect(lastJson('building\n[12:00] done [1,2]')).toEqual([1, 2])
+})

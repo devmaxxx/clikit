@@ -27,8 +27,15 @@ function normalize(text: string): string {
   return stripAnsi(text).replace(/\r\n?/g, '\n')
 }
 
-function startOfWholeLine(line: string): number {
-  return /^(?:[[{]|null$)/.test(line) ? 0 : -1
+function startsOfWholeLine(line: string): number[] {
+  return /^(?:[[{]|null$)/.test(line) ? [0] : []
+}
+
+// A last line may carry its value after a progress prefix, and the prefix can hold brackets of its own ("[INFO] {...}").
+function startsOfLastLine(line: string): number[] {
+  const starts = [...line.matchAll(/[[{]/g)].map(m => m.index)
+
+  return /^\s*null$/.test(line) ? [0] : starts
 }
 
 function findLastJson(raw: string, accept: (value: unknown) => boolean): unknown {
@@ -40,18 +47,19 @@ function findLastJson(raw: string, accept: (value: unknown) => boolean): unknown
   for (let i = lines.length - 1; i >= 0 && tries < MAX_LINE_TRIES; i--) {
     const line = lines[i] ?? ''
     offset -= line.length + (i < lines.length - 1 ? 1 : 0)
-    // The last line may carry its value after a progress prefix ("noise [1,2]").
-    const at = i === lines.length - 1 ? line.search(/[[{]|^\s*null$/) : startOfWholeLine(line)
+    const starts = i === lines.length - 1 ? startsOfLastLine(line) : startsOfWholeLine(line)
 
-    if (at === -1) {
-      continue
-    }
+    for (const at of starts) {
+      if (tries >= MAX_LINE_TRIES) {
+        break
+      }
 
-    tries++
-    const value = parse(text.slice(offset + at))
+      tries++
+      const value = parse(text.slice(offset + at))
 
-    if (value !== FAILED && accept(value)) {
-      return value
+      if (value !== FAILED && accept(value)) {
+        return value
+      }
     }
   }
 
